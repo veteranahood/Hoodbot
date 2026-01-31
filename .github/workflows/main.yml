@@ -1,0 +1,69 @@
+name: Build HoodBot APK
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          git zip unzip openjdk-17-jdk \
+          python3-pip python3-setuptools \
+          libncurses5 libstdc++6 \
+          zlib1g-dev libffi-dev libssl-dev \
+          autoconf automake libtool pkg-config \
+          wget curl
+
+    - name: Install Buildozer & Cython
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Debug Environment Info
+      run: |
+        python --version
+        pip list
+        java -version
+        echo "PWD: $(pwd)"
+        ls -al
+        free -h
+        df -h
+
+    - name: Install Android SDK & Tools
+      run: |
+        mkdir -p $HOME/android-sdk
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        cd $HOME/android-sdk
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip cmdline-tools.zip
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools/* cmdline-tools/latest/
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+    - name: Build APK (debug)
+      run: |
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        buildozer android debug
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: HoodBot-APK
+        path: bin/*.apk
